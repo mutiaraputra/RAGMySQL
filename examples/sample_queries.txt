@@ -1,0 +1,78 @@
+# Sample Queries for RAG Chatbot Testing
+
+This file contains 12 sample questions to test the RAG chatbot functionality. The queries are designed to cover various types: factual, comparison, how-to, and explanatory. They include both English and Bahasa Indonesia to test multilingual capabilities.
+
+Each query includes:
+- Query type
+- Language
+- Expected behavior notes (how the chatbot should respond, considering retrieval from TiDB vector store and generation via OpenRouter API)
+
+## Factual Questions
+1. What is machine learning?
+   - Type: Factual
+   - Language: English
+   - Expected: Retrieve relevant documents about ML definitions, explain clearly with sources cited. If no exact match, provide general knowledge with disclaimer.
+
+2. Apa itu kecerdasan buatan?
+   - Type: Factual
+   - Language: Bahasa Indonesia
+   - Expected: Similar to above, but respond in Indonesian if possible, citing sources from retrieved data.
+
+3. Who invented the telephone?
+   - Type: Factual
+   - Language: English
+   - Expected: Provide historical fact with evidence from sources; handle if data is outdated or incomplete.
+
+## Comparison Questions
+4. Compare Python and Java programming languages.
+   - Type: Comparison
+   - Language: English
+   - Expected: Retrieve docs on both languages, structure response with pros/cons, similarities/differences, and cite sources.
+
+5. Bandingkan database MySQL dan PostgreSQL.
+   - Type: Comparison
+   - Language: Bahasa Indonesia
+   - Expected: Respond in Indonesian, compare features, performance, use cases based on retrieved information.
+
+6. Which is better for web development: React or Angular?
+   - Type: Comparison
+   - Language: English
+   - Expected: Balanced comparison with trade-offs, note that "better" is subjective, provide sources.
+
+## How-To Questions
+7. How to install Python on Windows?
+   - Type: How-To
+   - Language: English
+   - Expected: Step-by-step instructions from retrieved docs, include prerequisites and troubleshooting tips.
+
+8. Bagaimana cara mengoptimalkan query MySQL?
+   - Type: How-To
+   - Language: Bahasa Indonesia
+   - Expected: Provide optimization techniques in Indonesian, with examples and sources.
+
+9. Explain how to create a REST API in Flask.
+   - Type: How-To
+   - Language: English
+   - Expected: Detailed steps, code snippets if available in data, cite tutorials or docs.
+
+## Explanatory Questions
+10. Jelaskan konsep Retrieval Augmented Generation (RAG).
+    - Type: Explanatory
+    - Language: Bahasa Indonesia
+    - Expected: Explain RAG architecture, benefits, how it works, using retrieved technical docs.
+
+11. What are the benefits of using vector databases?
+    - Type: Explanatory
+    - Language: English
+    - Expected: List advantages like similarity search, scalability, with examples and sources.
+
+12. Describe the differences between supervised and unsupervised learning.
+    - Type: Explanatory
+    - Language: English
+    - Expected: Clear explanation with definitions, examples, and comparisons.
+
+## Notes on Model Selection in OpenRouter
+- For reasoning-heavy queries (e.g., comparisons, explanations): Use Claude models like anthropic/claude-3.5-sonnet for superior analytical capabilities.
+- For general factual or how-to questions: GPT-4 models like openai/gpt-4o or openai/gpt-4o-mini offer balanced performance and cost.
+- For cost-effective responses on simpler queries: Llama models like meta-llama/llama-3.1-70b-instruct provide good quality at lower prices.
+- Always check https://openrouter.ai/models for the latest pricing, context windows, and availability. Switch models via OPENROUTER_MODEL in .env for testing different behaviors.

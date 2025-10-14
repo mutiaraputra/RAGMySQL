@@ -1,0 +1,19 @@
+{
+  "tables": [
+    {
+      "name": "articles",
+      "text_columns": ["title", "body"],
+      "id_column": "id"
+    },
+    {
+      "name": "products",
+      "text_columns": ["name", "description"],
+      "id_column": "product_id"
+    },
+    {
+      "name": "users",
+      "text_columns": ["bio", "notes"],
+      "id_column": "user_id"
+    }
+  ]
+}
