@@ -129,9 +129,9 @@ class MySQLScraper:
 
                 batch = []
                 for row in rows:
-                    # Concatenate text columns
-                    content_parts = [str(row[col]) for col in text_columns if row.get(col) is not None]
-                    content = " ".join(content_parts)
+                    # Concatenate text columns with field names for better readability
+                    content_parts = [f"{col} {str(row[col])}" for col in text_columns if row.get(col) is not None]
+                    content = ", ".join(content_parts)
                     # Metadata as dict of all columns
                     def _safe_json_value(value):
                         if isinstance(value, (date, datetime, time)):

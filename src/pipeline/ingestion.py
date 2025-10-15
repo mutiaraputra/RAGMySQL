@@ -199,8 +199,9 @@ class IngestionPipeline:
             cursor.close()
 
             for row in rows:
-                content_parts = [str(row[col]) for col in text_columns if row[col] is not None]
-                content = " ".join(content_parts)
+                # Concatenate text columns with field names for better readability
+                content_parts = [f"{col} {str(row[col])}" for col in text_columns if row[col] is not None]
+                content = ", ".join(content_parts)
                 metadata = {col: row[col] for col in all_columns}
                 doc = {
                     "id": row["id"],

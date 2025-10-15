@@ -6,12 +6,12 @@ from typing import Dict, List, Optional
 import numpy as np
 import mysql.connector
 from mysql.connector import Error
+from sklearn.metrics.pairwise import cosine_similarity
 
 from sqlmodel import SQLModel, Field, Column, JSON, create_engine
 from typing import Optional, List
 
 from config.settings import TiDBConfig
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 class TiDBVectorStore:
@@ -107,12 +107,13 @@ class TiDBVectorStore:
             raise ValueError("Number of documents must match number of embeddings")
 
         sql = f"""
-        INSERT INTO {self.table_name} (content, embedding, metadata, created_at)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO {self.table_name} (content, embedding, metadata, source_table, created_at)
+        VALUES (%s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             content=VALUES(content),
             embedding=VALUES(embedding),
             metadata=VALUES(metadata),
+            source_table=VALUES(source_table),
             created_at=VALUES(created_at)
         """
 
@@ -122,6 +123,7 @@ class TiDBVectorStore:
                 doc.get("content"),
                 json.dumps(emb.tolist()),
                 json.dumps(doc.get("metadata", {})),
+                doc.get("source_table"),
                 datetime.datetime.utcnow(),
             ))
 
