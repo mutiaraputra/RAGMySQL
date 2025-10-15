@@ -113,7 +113,7 @@ class RAGChatBot:
                     {"role": "system", "content": RAG_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ]
-                response = self.llm.invoke(messages=messages)
+                response = self.llm.invoke(input=messages)
                 answer = response.content
             else:
                 answer = FALLBACK_RESPONSE
@@ -192,7 +192,7 @@ class RAGChatBot:
                     {"role": "system", "content": RAG_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ]
-                response = self.llm.invoke(messages=messages)
+                response = self.llm.invoke(input=messages)
                 answer = response.content
             else:
                 answer = FALLBACK_RESPONSE

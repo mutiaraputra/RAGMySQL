@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from config.settings import settings
+from config.settings import get_initialized_settings
 
 class EmbeddingGenerator:
     """
@@ -23,6 +23,7 @@ class EmbeddingGenerator:
             device: Device to run the model on ('cpu' or 'cuda'). Defaults to 'cpu'.
         """
         if model_name is None:
+            settings = get_initialized_settings()
             model_name = settings.app.embedding_model
         self.model_name = model_name
         self.device = device
@@ -94,6 +95,7 @@ class EmbeddingGenerator:
         # Generate embeddings for uncached texts in batch
         if uncached_texts:
             try:
+                settings = get_initialized_settings()
                 batch_embeddings = self.model.encode(
                     uncached_texts, 
                     normalize_embeddings=True, 

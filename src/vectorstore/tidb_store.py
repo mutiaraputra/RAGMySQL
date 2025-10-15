@@ -11,6 +11,7 @@ from sqlmodel import SQLModel, Field, Column, JSON, create_engine
 from typing import Optional, List
 
 from config.settings import TiDBConfig
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 class TiDBVectorStore:
@@ -146,28 +147,39 @@ class TiDBVectorStore:
                 return []
 
             docs = []
-            sims = []
+
+            # Normalize query embedding untuk cosine similarity
+            query_embedding = query_embedding.reshape(1, -1)
 
             # Hitung cosine similarity
             for row in rows:
                 try:
-                    db_vector = np.frombuffer(row["embedding"], dtype=np.float32)
-                    sim = cosine_similarity([query_vector], [db_vector])[0][0]
+                    # Parse JSON embedding dari database
+                    embedding_str = row["embedding"]
+                    if isinstance(embedding_str, str):
+                        db_vector = np.array(json.loads(embedding_str))
+                    else:
+                        db_vector = np.array(embedding_str)
+                    
+                    # Reshape untuk cosine similarity
+                    db_vector = db_vector.reshape(1, -1)
+                    
+                    # Hitung similarity
+                    sim = cosine_similarity(query_embedding, db_vector)[0][0]
                 except Exception as e:
                     self.logger.warning(f"Failed to compute similarity for row {row['id']}: {e}")
                     sim = 0.0
 
-                
                 docs.append({
                     "id": row["id"],
                     "content": row["content"],
                     "metadata": json.loads(row["metadata"] or "{}"),
                     "similarity_score": float(sim)
                 })
-                sims.append(sim)
 
             # Urutkan berdasarkan similarity tertinggi
-            top_docs = sorted(docs, key=lambda x: x["score"], reverse=True)[:top_k]
+            top_docs = sorted(docs, key=lambda x: x["similarity_score"], reverse=True)[:top_k]
+            self.logger.info(f"Found {len(top_docs)} documents with similarity scores")
             return top_docs
 
         except Exception as e:

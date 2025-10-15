@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from config.settings import settings
+from config.settings import get_initialized_settings
 from src.chatbot.rag_bot import RAGChatBot
 from src.embeddings.generator import EmbeddingGenerator
 from src.vectorstore.tidb_store import TiDBVectorStore
@@ -43,6 +43,9 @@ def run_chatbot(top_k: int = 5, model: Optional[str] = None, no_history: bool = 
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
+        # Get settings
+        settings = get_initialized_settings()
+        
         # Override model if provided
         if model:
             settings.openrouter.model = model
@@ -105,7 +108,8 @@ Available commands:
                         """.strip()
                         console.print(Panel(help_text, title="Help", border_style="green"))
                     elif command == "/model":
-                        console.print(f"[blue]Current model: {settings.openrouter.model}[/blue]")
+                        current_settings = get_initialized_settings()
+                        console.print(f"[blue]Current model: {current_settings.openrouter.model}[/blue]")
                     else:
                         console.print(f"[red]Unknown command: {user_input}. Type /help for available commands.[/red]")
                     continue
