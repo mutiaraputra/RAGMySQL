@@ -187,4 +187,7 @@ Untuk guidelines lengkap, lihat `CONTRIBUTING.md` (jika ada). Pastikan semua tes
 
 ---
 
-Untuk pertanyaan atau dukungan, buka issue di GitHub atau hubungi maintainer.
+Secangkir kopi bisa memberi semangat
+e-Wallet Dana, ShopeePay, Gopay, LinkAja 085755080250
+QRIS https://github.com/user-attachments/assets/5f14a862-5ccc-47f2-a69a-fd20f6098cc7
+
