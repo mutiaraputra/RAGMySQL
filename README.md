@@ -43,7 +43,7 @@ User Query → Embedding Generator → TiDB Search → RAG ChatBot → OpenRoute
 
 1. **Clone Repository**:
    ```bash
-   git clone https://github.com/yourusername/RAGMySQL.git
+   git clone https://github.com/mutiaraputra/RAGMySQL.git
    cd RAGMySQL
    ```
 
