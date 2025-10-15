@@ -158,4 +158,14 @@ class _SettingsProxy:
 
 
 # Export a module-level proxy for settings so imports succeed even when env is incomplete
-settings = _SettingsProxy()
+settings_proxy = _SettingsProxy()
+
+# Function to get actual settings (forces initialization)
+def get_initialized_settings() -> Settings:
+    """Get initialized settings, forcing creation if needed."""
+    if settings_proxy._real is None:
+        settings_proxy.bind_real(Settings())
+    return settings_proxy._real
+
+# For backward compatibility, keep 'settings' name but make it callable
+settings = get_initialized_settings()

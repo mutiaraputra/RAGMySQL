@@ -7,7 +7,7 @@ import typer
 
 import importlib
 import config.settings as settings_module
-from config.settings import settings, Settings
+from config.settings import settings, Settings, get_initialized_settings
 from scripts.run_chatbot import run_chatbot
 from scripts.run_scraper import run_scrape
 from scripts.setup_database import perform_setup
@@ -38,29 +38,12 @@ def main_callback(
             # Replace the module-level settings in the config.settings module so future
             # attribute lookups reference the newly created Settings instance.
             # This also rebinds the local `settings` name used in this module.
-            settings_module.settings = new_settings
-            settings = new_settings
-
-            # For any modules that already imported the previous `settings` object by reference,
-            # attempt to copy attributes onto that object to keep references consistent.
-            try:
-                old_settings = importlib.import_module('config.settings').settings
-                if old_settings is not new_settings:
-                    for k, v in new_settings.__dict__.items():
-                        try:
-                            setattr(old_settings, k, v)
-                        except Exception:
-                            # If copying a particular attribute fails, continue; the primary
-                            # binding is the module-level assignment above.
-                            pass
-            except Exception:
-                # If importing back fails for any reason, proceed — the module-level
-                # assignment should be sufficient for most uses.
-                pass
-
+            from config.settings import settings_proxy
+            settings_proxy.bind_real(new_settings)
         except Exception as e:
             typer.echo(f"Failed to load configuration from {config}: {e}", err=True)
             raise typer.Exit(1)
+ 
 
     # Setup logging
     level = logging.DEBUG if verbose else logging.INFO
@@ -75,10 +58,10 @@ def main_callback(
 
     # Basic validation
     try:
-        # Access settings to trigger loading and validation
-        _ = settings.mysql.host
-        _ = settings.tidb.host
-        _ = settings.openrouter.api_key
+        actual_settings = get_initialized_settings()
+        _ = actual_settings.mysql.host
+        _ = actual_settings.tidb.host
+        _ = actual_settings.openrouter.api_key
     except Exception as e:
         typer.echo(f"Configuration error: {e}", err=True)
         typer.echo("Please check your .env file or use --config to specify a configuration file.", err=True)
@@ -115,6 +98,7 @@ def setup(
 ):
     """Setup TiDB database: create database, table, and vector index."""
     # Use shared perform_setup function from scripts.setup_database
+    actual_settings = get_initialized_settings()
     perform_setup(drop, verify_only)
 
 
@@ -128,7 +112,8 @@ def version():
 def models():
     """Show current OpenRouter model and link to available models."""
     try:
-        current_model = settings.openrouter.model
+        actual_settings = get_initialized_settings()
+        current_model = actual_settings.openrouter.model
         typer.echo(f"Current OpenRouter model: {current_model}")
         typer.echo("For a full list of available models and pricing, visit: https://openrouter.ai/models")
         typer.echo("You can change the model by setting OPENROUTER_MODEL in your .env file.")

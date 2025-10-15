@@ -5,6 +5,7 @@ import mysql.connector
 from mysql.connector import Error as MySQLError
 
 from config.settings import MySQLConfig
+from datetime import date, datetime, time
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,22 @@ class MySQLScraper:
             logger.error(f"Failed to connect to MySQL database: {e}")
             raise
 
+    def ensure_connection(self):
+        """Ensure MySQL connection is alive; reconnect if necessary."""
+        if not self.connection or not self.connection.is_connected():
+            try:
+                self.connection = mysql.connector.connect(
+                    host=self.config.host,
+                    port=self.config.port,
+                    user=self.config.user,
+                    password=self.config.password,
+                    database=self.config.database
+                )
+                logger.warning("MySQL connection was re-established automatically.")
+            except MySQLError as e:
+                logger.error(f"Failed to reconnect to MySQL: {e}")
+                raise
+
     def __enter__(self):
         """Context manager entry."""
         return self
@@ -41,6 +58,7 @@ class MySQLScraper:
 
     def get_tables(self) -> List[str]:
         """List all tables in the database."""
+        self.ensure_connection()
         try:
             cursor = self.connection.cursor()
             cursor.execute("SHOW TABLES")
@@ -54,6 +72,7 @@ class MySQLScraper:
 
     def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
         """Inspect columns and types for a given table."""
+        self.ensure_connection()
         try:
             cursor = self.connection.cursor()
             cursor.execute(f"DESCRIBE {table_name}")
@@ -67,6 +86,7 @@ class MySQLScraper:
 
     def get_row_count(self, table_name: str) -> int:
         """Get the total row count for a table for progress estimation."""
+        self.ensure_connection()
         try:
             cursor = self.connection.cursor()
             cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
@@ -83,6 +103,7 @@ class MySQLScraper:
 
         Each record is a dict with keys: id, source_table, content (concatenated text), metadata (dict of all columns).
         """
+        self.ensure_connection()
         try:
             # Fetch schema once per table for efficiency
             all_columns = [col["Field"] for col in self.get_table_schema(table_name)]
@@ -112,7 +133,14 @@ class MySQLScraper:
                     content_parts = [str(row[col]) for col in text_columns if row.get(col) is not None]
                     content = " ".join(content_parts)
                     # Metadata as dict of all columns
-                    metadata = {col: row[col] for col in all_columns}
+                    def _safe_json_value(value):
+                        if isinstance(value, (date, datetime, time)):
+                            return value.isoformat()
+                        elif hasattr(value, "quantize"):  # Decimal
+                            return float(value)
+                        return value
+
+                    metadata = {col: _safe_json_value(row[col]) for col in all_columns}
                     record = {
                         "id": row[id_column],
                         "source_table": table_name,
@@ -141,6 +169,7 @@ class MySQLScraper:
         table_config: dict mapping table_name -> {"text_columns": [...], "id_column": "..."}.
         Yields batches from each table sequentially.
         """
+        self.ensure_connection()
         for table_name, cfg in table_config.items():
             text_columns = cfg.get('text_columns', [])
             id_column = cfg.get('id_column', 'id')

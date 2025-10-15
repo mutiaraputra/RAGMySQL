@@ -50,7 +50,6 @@ def build_table_config(tables: Optional[str], all_tables: bool, config_path: Opt
             pass
     else:
         # No config file, determine tables and text_columns from schema
-        with pipeline.scraper:
             all_table_names = pipeline.scraper.get_tables()
             if tables:
                 table_names = [t.strip() for t in tables.split(',')]

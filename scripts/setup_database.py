@@ -6,11 +6,12 @@ import click
 import mysql.connector
 from mysql.connector import Error
 
-from config.settings import settings
+from config.settings import get_initialized_settings  # GANTI IMPORT
 from src.vectorstore.tidb_store import TiDBVectorStore
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+if not logging.getLogger().hasHandlers():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +21,9 @@ def perform_setup(drop: bool, verify_only: bool):
     This function contains the core setup logic and can be called from the Click command
     or from other CLI entry points (e.g., `main.py`).
     """
+    vector_store = None
     try:
+        settings = get_initialized_settings()
         tidb_config = settings.tidb
         app_config = settings.app
 
@@ -53,6 +56,8 @@ def perform_setup(drop: bool, verify_only: bool):
 
         # Verify connectivity to TiDB server with a lightweight probe (do not require table to exist)
         try:
+            if vector_store.client is None:
+                raise RuntimeError("TiDB connection not initialized")
             with vector_store.client.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 _ = cursor.fetchone()
@@ -129,9 +134,14 @@ def perform_setup(drop: bool, verify_only: bool):
         sys.exit(1)
     finally:
         # Ensure connection is closed
-        if 'vector_store' in locals():
-            vector_store.client.close()
+        if vector_store is not None and hasattr(vector_store, 'client'):
+            try:
+                vector_store.client.close()
+                logger.info("TiDB connection closed")
+            except Exception as e:
+                logger.warning(f"Failed to close TiDB connection: {e}")
 
+    logger.info("Reached end of try block successfully.")
 
 @click.command()
 @click.option('--drop', is_flag=True, help='Drop existing table before creating (requires confirmation)')
