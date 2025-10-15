@@ -191,5 +191,4 @@ Secangkir kopi bisa memberi semangat
 
 e-Wallet Dana, ShopeePay, Gopay, LinkAja : 085755080250
 
-QRIS: https://github.com/user-attachments/assets/5f14a862-5ccc-47f2-a69a-fd20f6098cc7
-
+QRIS: https://github.com/user-attachments/assets/b7199a8f-9135-490a-9696-a5cb6d4435cc
