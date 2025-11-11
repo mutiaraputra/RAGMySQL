@@ -88,7 +88,7 @@ class RAGChatBot:
             # Format context from retrieved documents
             if retrieved_docs:
                 context = "\n\n".join([
-                    f"Source: {doc['metadata'].get('source_table', 'Unknown')}\nContent: {doc['content']}"
+                    f"Source: {doc['metadata'].get('source_table', 'Basis Data')}\nContent: {doc['content']}"
                     for doc in retrieved_docs
                 ])
                 confidence_score = sum(doc['similarity_score'] for doc in retrieved_docs) / len(retrieved_docs)
@@ -157,7 +157,7 @@ class RAGChatBot:
             # Format context
             if retrieved_docs:
                 context = "\n\n".join([
-                    f"Source: {doc['metadata'].get('source_table', 'Unknown')}\nContent: {doc['content']}"
+                    f"Source: {doc['metadata'].get('source_table', 'Basis Data')}\nContent: {doc['content']}"
                     for doc in retrieved_docs
                 ])
                 confidence_score = sum(doc['similarity_score'] for doc in retrieved_docs) / len(retrieved_docs)
