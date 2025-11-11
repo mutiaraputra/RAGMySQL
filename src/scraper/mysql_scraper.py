@@ -18,13 +18,25 @@ class MySQLScraper:
         self.config = mysql_config
         self.connection = None
         try:
-            self.connection = mysql.connector.connect(
-                host=self.config.host,
-                port=self.config.port,
-                user=self.config.user,
-                password=self.config.password,
-                database=self.config.database
-            )
+            # Build connection parameters
+            conn_params = {
+                'host': self.config.host,
+                'port': self.config.port,
+                'user': self.config.user,
+                'password': self.config.password,
+                'database': self.config.database
+            }
+            
+            # Add SSL/TLS parameters if enabled
+            if self.config.use_tls:
+                conn_params['ssl_verify_cert'] = True
+                if self.config.ca_cert_path:
+                    conn_params['ssl_ca'] = self.config.ca_cert_path
+                    logger.info(f"Using SSL/TLS connection with CA certificate: {self.config.ca_cert_path}")
+                else:
+                    logger.info("Using SSL/TLS connection without custom CA certificate")
+            
+            self.connection = mysql.connector.connect(**conn_params)
             logger.info("Successfully connected to MySQL database.")
         except MySQLError as e:
             logger.error(f"Failed to connect to MySQL database: {e}")

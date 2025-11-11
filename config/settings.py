@@ -12,7 +12,8 @@ class MySQLConfig(BaseModel):
     user: str = Field(..., description="MySQL username")
     password: str = Field(..., description="MySQL password")
     database: str = Field(..., description="MySQL database name")
-
+    use_tls: bool = Field(False, description="Whether to use TLS/SSL for MySQL connection")
+    ca_cert_path: Optional[str] = Field(None, description="Path to CA certificate file for SSL connection (e.g., for Aiven.io)")
 
 class TiDBConfig(BaseModel):
     """Configuration for TiDB database connection."""
