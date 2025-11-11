@@ -43,7 +43,7 @@ User Query → Embedding Generator → TiDB Search → RAG ChatBot → OpenRoute
 
 1. **Clone Repository**:
    ```bash
-   git clone https://github.com/yourusername/RAGMySQL.git
+   git clone https://github.com/mutiaraputra/RAGMySQL.git
    cd RAGMySQL
    ```
 
@@ -187,4 +187,8 @@ Untuk guidelines lengkap, lihat `CONTRIBUTING.md` (jika ada). Pastikan semua tes
 
 ---
 
-Untuk pertanyaan atau dukungan, buka issue di GitHub atau hubungi maintainer.
+Secangkir kopi bisa memberi semangat
+
+e-Wallet Dana, ShopeePay, Gopay, LinkAja : 085755080250
+
+QRIS: https://github.com/user-attachments/assets/b7199a8f-9135-490a-9696-a5cb6d4435cc
