@@ -30,11 +30,11 @@ class MySQLScraper:
             # Add SSL/TLS parameters if enabled
             if self.config.use_tls:
                 conn_params['ssl_verify_cert'] = True
-                if self.config.ca_cert_path:
-                    conn_params['ssl_ca'] = self.config.ca_cert_path
-                    logger.info(f"Using SSL/TLS connection with CA certificate: {self.config.ca_cert_path}")
+                if self.config.ca_cert:
+                    conn_params['ssl_ca'] = self.config.ca_cert
+                    logger.info(f"Using SSL/TLS connection with CA certificate string.")
                 else:
-                    logger.info("Using SSL/TLS connection without custom CA certificate")
+                    logger.info("Using SSL/TLS connection without CA certificate string.")
             
             self.connection = mysql.connector.connect(**conn_params)
             logger.info("Successfully connected to MySQL database.")
