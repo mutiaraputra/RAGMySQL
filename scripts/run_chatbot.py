@@ -1,5 +1,4 @@
 import signal
-import signal
 import sys
 from typing import Optional
 
@@ -11,7 +10,7 @@ from rich.text import Text
 from config.settings import get_initialized_settings
 from src.chatbot.rag_bot import RAGChatBot
 from src.embeddings.generator import EmbeddingGenerator
-from src.vectorstore.tidb_store import TiDBVectorStore
+from src.vectorstore.pinecone_store import PineconeVectorStore
 
 app = typer.Typer()
 console = Console()
@@ -26,20 +25,16 @@ def signal_handler(sig, frame):
 @app.command()
 def main(
     top_k: int = typer.Option(5, help="Number of top documents to retrieve"),
-    model: Optional[str] = typer.Option(None, help="Override OpenRouter model from config"),
+    model: Optional[str] = typer.Option(None, help="Override Gemini model from config"),
     no_history: bool = typer.Option(False, help="Disable conversation memory"),
-    stream: bool = typer.Option(False, help="Enable streaming responses (not yet implemented)"),
 ):
-    """Run the interactive RAG chatbot with OpenRouter integration."""
-    # Setup signal handler for graceful shutdown
+    """Run the interactive RAG chatbot with Google Gemini."""
     signal.signal(signal.SIGINT, signal_handler)
+    run_chatbot(top_k=top_k, model=model, no_history=no_history)
 
-    run_chatbot(top_k=top_k, model=model, no_history=no_history, stream=stream)
 
-
-def run_chatbot(top_k: int = 5, model: Optional[str] = None, no_history: bool = False, stream: bool = False):
-    """Callable entrypoint for the chatbot; can be registered by `main.py`."""
-    # Setup signal handler for graceful shutdown
+def run_chatbot(top_k: int = 5, model: Optional[str] = None, no_history: bool = False):
+    """Callable entrypoint for the chatbot."""
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
@@ -48,24 +43,32 @@ def run_chatbot(top_k: int = 5, model: Optional[str] = None, no_history: bool = 
         
         # Override model if provided
         if model:
-            settings.openrouter.model = model
+            settings.gemini.model = model
 
         # Initialize components
+        console.print("[yellow]Loading embedding model...[/yellow]")
         embedding_generator = EmbeddingGenerator()
-        vector_store = TiDBVectorStore(
-            tidb_config=settings.tidb,
-            table_name=settings.app.vector_table_name,
-            embedding_dim=settings.app.embedding_dimension,
-            distance_metric=settings.app.distance_metric,
+        
+        console.print("[yellow]Connecting to Pinecone...[/yellow]")
+        vector_store = PineconeVectorStore(
+            settings.pinecone,
+            settings.app.embedding_dimension
         )
+        
+        console.print("[yellow]Initializing Gemini chatbot...[/yellow]")
         chatbot = RAGChatBot(
-            openrouter_config=settings.openrouter,
+            gemini_config=settings.gemini,
             embedding_generator=embedding_generator,
             vector_store=vector_store,
         )
 
         # Welcome message
-        welcome_text = Text(f"Welcome to RAGMySQL Chatbot!\nUsing OpenRouter model: {settings.openrouter.model}", style="bold green")
+        welcome_text = Text(
+            f"Welcome to RAG Chatbot with Google Gemini!\n"
+            f"Model: {settings.gemini.model}\n"
+            f"Temperature: {settings.gemini.temperature}",
+            style="bold green"
+        )
         console.print(Panel(welcome_text, title="🤖 RAG Chatbot", border_style="blue"))
         console.print("Type your questions or use commands (/help for list). Press Ctrl+C to exit.\n")
 
@@ -94,7 +97,10 @@ def run_chatbot(top_k: int = 5, model: Optional[str] = None, no_history: bool = 
                         if last_sources:
                             console.print("[bold magenta]Last Sources:[/bold magenta]")
                             for i, source in enumerate(last_sources, 1):
-                                console.print(f"[dim]{i}. {source['content'][:100]}... (Score: {source['similarity_score']:.3f})[/dim]")
+                                console.print(
+                                    f"[dim]{i}. {source['content'][:100]}... "
+                                    f"(Score: {source['similarity_score']:.3f})[/dim]"
+                                )
                         else:
                             console.print("[yellow]No sources available.[/yellow]")
                     elif command == "/help":
@@ -103,15 +109,25 @@ Available commands:
 /exit - Quit the chatbot
 /clear - Clear conversation history and sources
 /sources - Show sources from last response
-/model - Show current OpenRouter model
+/model - Show current Gemini model configuration
 /help - Show this help message
                         """.strip()
                         console.print(Panel(help_text, title="Help", border_style="green"))
                     elif command == "/model":
                         current_settings = get_initialized_settings()
-                        console.print(f"[blue]Current model: {current_settings.openrouter.model}[/blue]")
+                        model_info = f"""
+Model: {current_settings.gemini.model}
+Temperature: {current_settings.gemini.temperature}
+Max Tokens: {current_settings.gemini.max_output_tokens}
+Top-P: {current_settings.gemini.top_p}
+Top-K: {current_settings.gemini.top_k}
+                        """.strip()
+                        console.print(Panel(model_info, title="Gemini Configuration", border_style="blue"))
                     else:
-                        console.print(f"[red]Unknown command: {user_input}. Type /help for available commands.[/red]")
+                        console.print(
+                            f"[red]Unknown command: {user_input}. "
+                            f"Type /help for available commands.[/red]"
+                        )
                     continue
 
                 # Process question
@@ -120,13 +136,13 @@ Available commands:
                 if no_history:
                     response = chatbot.ask(user_input, top_k=top_k)
                 else:
-                    response = chatbot.chat(user_input, conversation_history)
+                    response = chatbot.chat(user_input, conversation_history, top_k=top_k)
 
                 # Clear thinking message
                 console.print("\r" + " " * 20 + "\r", end="")
 
                 # Display answer
-                answer_panel = Panel(response["answer"], title="🤖 Assistant", border_style="green")
+                answer_panel = Panel(response["answer"], title="🤖 Gemini", border_style="green")
                 console.print(answer_panel)
 
                 # Display sources if available
@@ -141,10 +157,12 @@ Available commands:
                     last_sources = []
                     console.print("[dim]No sources found.[/dim]")
 
-                # Display model and confidence if available
+                # Display model and confidence
                 info_text = f"Model: {response['model_used']}"
+
                 if response.get("confidence_score"):
                     info_text += f" | Confidence: {response['confidence_score']:.3f}"
+
                 console.print(f"[dim]{info_text}[/dim]\n")
 
             except Exception as e:

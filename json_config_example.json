@@ -1,0 +1,11 @@
+{
+  "example_1": {
+    "description": "Simple REST API with flat structure",
+    "env_config": {
+      "JSON_ENDPOINT__URL": "https://jsonplaceholder.typicode.com/posts",
+      "JSON_ENDPOINT__DATA_PATH": ".",
+      "JSON_ENDPOINT__ID_FIELD": "id",
+      "JSON_ENDPOINT__CONTENT_FIELDS": "[\"title\",\"body\"]"
+    }
+  }
+}

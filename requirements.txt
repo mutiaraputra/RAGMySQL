@@ -1,30 +1,31 @@
-# Database dependencies
-mysql-connector-python>=8.0.0
-pytidb>=0.0.5
+# HTTP requests
+requests>=2.31.0
 
-# Embedding generation (local models)
+# Embedding generation
 sentence-transformers>=2.2.0
 torch>=2.0.0
 
-# LLM and RAG framework
-langchain>=0.1.0
-langchain-openai>=0.0.5
-openai>=1.0.0  # Used for OpenRouter API compatibility
+# Google Gemini API
+google-generativeai>=0.3.0
 
-# Configuration management
+# Configuration
 python-dotenv>=1.0.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 
 # Utilities
 tqdm>=4.65.0
-pandas>=2.0.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
 
-# Command-line interface
+# CLI
 typer>=0.9.0
+rich>=13.0.0
 
-# Optional dependencies (for future enhancements)
-streamlit>=1.28.0  # Web UI
-rich>=13.0.0  # Colored CLI output
+# Web server for Cloud Run
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+gunicorn>=21.2.0
+
+# MySQL connector
+mysql-connector-python>=8.0.0

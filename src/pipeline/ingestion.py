@@ -7,45 +7,43 @@ from typing import Dict, Any, Optional, List
 import tqdm
 
 from config.settings import settings
-from src.scraper.mysql_scraper import MySQLScraper
+from src.scraper.json_scraper import JSONScraper
 from src.embeddings.chunker import TextChunker
 from src.embeddings.generator import EmbeddingGenerator
-from src.vectorstore.tidb_store import TiDBVectorStore
+from src.vectorstore.pinecone_store import PineconeVectorStore  # ✅ Bukan TiDB
 
 logger = logging.getLogger(__name__)
 
 
 class IngestionPipeline:
-    """Orchestrates the full data ingestion pipeline from MySQL to TiDB vector storage."""
+    """Orchestrates data ingestion from JSON endpoint to Pinecone."""
+    
     def __init__(self):
-        """Initialize all pipeline components."""
-        self.scraper = MySQLScraper(settings.mysql)
+        """Initialize pipeline components."""
+        self.scraper = JSONScraper(settings.json_endpoint)
         self.chunker = TextChunker()
         self.generator = EmbeddingGenerator()
-        self.vectorstore = TiDBVectorStore(
-            settings.tidb,
-            settings.app.vector_table_name,
-            settings.app.embedding_dimension,
-            settings.app.distance_metric
+        self.vectorstore = PineconeVectorStore(  # ✅ Pinecone
+            settings.pinecone,
+            settings.app.embedding_dimension
         )
         self.checkpoint_file = Path("pipeline_checkpoint.json")
 
     def validate_pipeline(self) -> bool:
-        """Validate all connections and configurations before running the pipeline."""
+        """Validate all connections and configurations."""
         logger.info("Validating pipeline components...")
         try:
-            # Test MySQL connection
+            # Test JSON endpoint
             with self.scraper:
-                tables = self.scraper.get_tables()
-                logger.info(f"MySQL connection valid, found {len(tables)} tables")
-
-            # Test TiDB connection and create table if needed
-            self.vectorstore.create_table()
-            logger.info("TiDB connection and table creation valid")
+                data = self.scraper.fetch_data()
+                logger.info(f"JSON endpoint connection valid, fetched data successfully")
 
             # Validate embedding dimension
             if self.generator.get_dimension() != settings.app.embedding_dimension:
-                raise ValueError(f"Embedding dimension mismatch: expected {settings.app.embedding_dimension}, got {self.generator.get_dimension()}")
+                raise ValueError(
+                    f"Embedding dimension mismatch: expected {settings.app.embedding_dimension}, "
+                    f"got {self.generator.get_dimension()}"
+                )
 
             logger.info("Pipeline validation successful")
             return True
@@ -80,49 +78,38 @@ class IngestionPipeline:
             self.checkpoint_file.unlink()
             logger.info("Checkpoint cleared")
 
-    def run_full_pipeline(self, table_config: Dict[str, Any]) -> Dict[str, Any]:
+    def run_full_pipeline(self) -> Dict[str, Any]:
         """
-        Run the full ingestion pipeline in a streaming fashion.
-
-        For each scraped batch: chunk -> embed -> insert, then free memory.
-
-        Args:
-            table_config: Dict mapping table_name -> table config (text_columns, id_column)
-
+        Run the full ingestion pipeline from JSON endpoint to Pinecone.
+        
         Returns:
-            Statistics dict with total_documents, total_chunks, total_embeddings, processing_time
+            Statistics dict
         """
         start_time = time.time()
-        logger.info("Starting full ingestion pipeline (streaming)")
+        logger.info("Starting full ingestion pipeline (JSON -> Pinecone)")
 
         # Validate pipeline
         self.validate_pipeline()
-
-        # Checkpoint support (not fully implemented for resume)
-        checkpoint = self._load_checkpoint()
-        if checkpoint:
-            logger.info("Resuming from checkpoint (partial resume not implemented)")
 
         total_documents = 0
         total_chunks = 0
         total_embeddings = 0
 
-        # Streaming loop: process each scraped batch immediately
-        for batch in self.scraper.scrape_all_tables(table_config):
+        # Streaming loop: process each batch immediately
+        for batch in self.scraper.scrape_data(batch_size=settings.app.batch_size):
             batch_chunks: List[Dict[str, Any]] = []
 
             for doc in batch:
-                chunks = self.chunker.chunk_text(doc.get('content', ''), doc.get('metadata', {}))
+                chunks = self.chunker.chunk_text(
+                    doc.get('content', ''), 
+                    doc.get('metadata', {})
+                )
 
-                source_id = doc.get('id') or doc.get('metadata', {}).get('id')
-                source_table = doc.get('source_table')
+                # Enrich chunks with IDs
+                doc_id = doc.get('id')
                 for chunk in chunks:
                     chunk_index = chunk.get('metadata', {}).get('chunk_index', 0)
-                    if source_id is not None:
-                        chunk['id'] = f"{source_id}:{chunk_index}"
-                    else:
-                        chunk['id'] = str(chunk_index)
-                    chunk['source_table'] = source_table
+                    chunk['id'] = f"{doc_id}:{chunk_index}"
 
                 batch_chunks.extend(chunks)
                 total_documents += 1
@@ -130,24 +117,19 @@ class IngestionPipeline:
             if not batch_chunks:
                 continue
 
-            # Generate embeddings for this batch and insert immediately
+            # Generate embeddings
             texts = [c['content'] for c in batch_chunks]
             embeddings = self.generator.generate_embeddings(texts)
+            
+            # Upsert to Pinecone
             self.vectorstore.add_documents(batch_chunks, embeddings)
 
             total_chunks += len(batch_chunks)
-            try:
-                total_embeddings += int(embeddings.shape[0])
-            except Exception:
-                total_embeddings += len(batch_chunks)
+            total_embeddings += embeddings.shape[0]
 
-            # Free batch memory
+            # Free memory
             del batch_chunks
             del embeddings
-
-        # Create vector index (if necessary)
-        logger.info("Creating vector index (if not present)")
-        self.vectorstore.create_vector_index()
 
         processing_time = time.time() - start_time
 
@@ -159,7 +141,6 @@ class IngestionPipeline:
         }
 
         logger.info(f"Pipeline completed successfully: {stats}")
-        self._clear_checkpoint()
         return stats
 
     def run_incremental(self, table_name: str, last_id: int) -> Dict[str, Any]:

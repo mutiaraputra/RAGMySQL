@@ -1,8 +1,5 @@
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-
 import typer
 
 from config.settings import settings
@@ -114,23 +111,23 @@ def run_scrape(tables: Optional[str] = None, all_tables: bool = False, config: O
         if dry_run:
             typer.echo("Dry run: Validating pipeline...")
             pipeline.validate_pipeline()
-            typer.echo("Validation successful. Tables and configurations look good.")
+            typer.echo("✓ Validation successful")
             return
 
         # Run pipeline
-        typer.echo("Starting ingestion pipeline...")
-        stats = pipeline.run_full_pipeline(table_config)
+        typer.echo("Starting ingestion from JSON endpoint to Pinecone...")
+        stats = pipeline.run_full_pipeline()
 
         # Print summary
-        typer.echo("\nPipeline completed successfully!")
-        typer.echo(f"Total documents processed: {stats['total_documents']}")
-        typer.echo(f"Total chunks created: {stats['total_chunks']}")
-        typer.echo(f"Total embeddings generated: {stats['total_embeddings']}")
-        typer.echo(f"Processing time: {stats['processing_time']:.2f} seconds")
+        typer.echo("\n✓ Pipeline completed successfully!")
+        typer.echo(f"Total documents: {stats['total_documents']}")
+        typer.echo(f"Total chunks: {stats['total_chunks']}")
+        typer.echo(f"Total embeddings: {stats['total_embeddings']}")
+        typer.echo(f"Processing time: {stats['processing_time']:.2f}s")
 
     except Exception as e:
         logger.error(f"Pipeline failed: {e}")
-        typer.echo(f"Error: {e}", err=True)
+        typer.echo(f"✗ Error: {e}", err=True)
         raise typer.Exit(1)
 
 
