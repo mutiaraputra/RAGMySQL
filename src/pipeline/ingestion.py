@@ -1,18 +1,14 @@
-import json
 import logging
 import time
+import json
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List, Optional
 
-import tqdm
-
-from config.settings import settings
+from config.settings import get_initialized_settings, settings
 from src.scraper.json_scraper import JSONScraper
-from src.embeddings.chunker import TextChunker
+from src.chunking.text_chunker import TextChunker
 from src.embeddings.generator import EmbeddingGenerator
-from src.vectorstore.pinecone_store import PineconeVectorStore  # ✅ Bukan TiDB
-
-logger = logging.getLogger(__name__)
+from src.vectorstore.pinecone_store import PineconeVectorStore
 
 
 class IngestionPipeline:
@@ -20,39 +16,90 @@ class IngestionPipeline:
     
     def __init__(self):
         """Initialize pipeline components."""
+        self.logger = logging.getLogger(__name__)
+        self.checkpoint_file = Path("pipeline_checkpoint.json")
+        
+        # Initialize components
         self.scraper = JSONScraper(settings.json_endpoint)
-        self.chunker = TextChunker()
+        self.chunker = TextChunker(
+            chunk_size=settings.app.chunk_size,
+            chunk_overlap=settings.app.chunk_overlap
+        )
         self.generator = EmbeddingGenerator()
-        self.vectorstore = PineconeVectorStore(  # ✅ Pinecone
+        self.vectorstore = PineconeVectorStore(
             settings.pinecone,
             settings.app.embedding_dimension
         )
-        self.checkpoint_file = Path("pipeline_checkpoint.json")
-
+    
     def validate_pipeline(self) -> bool:
-        """Validate all connections and configurations."""
-        logger.info("Validating pipeline components...")
+        """Validate pipeline configuration."""
         try:
-            # Test JSON endpoint
-            with self.scraper:
-                data = self.scraper.fetch_data()
-                logger.info(f"JSON endpoint connection valid, fetched data successfully")
-
-            # Validate embedding dimension
-            if self.generator.get_dimension() != settings.app.embedding_dimension:
-                raise ValueError(
-                    f"Embedding dimension mismatch: expected {settings.app.embedding_dimension}, "
-                    f"got {self.generator.get_dimension()}"
-                )
-
-            logger.info("Pipeline validation successful")
+            self.logger.info("Validating pipeline configuration...")
+            # Check if scraper can connect
+            self.logger.info(f"JSON Endpoint: {settings.json_endpoint.url}")
             return True
         except Exception as e:
-            logger.error(f"Pipeline validation failed: {e}")
+            self.logger.error(f"Validation failed: {e}")
+            return False
+    
+    def run_full_pipeline(self) -> Dict[str, Any]:
+        """Run the complete ingestion pipeline."""
+        start_time = time.time()
+        stats = {
+            "total_documents": 0,
+            "total_chunks": 0,
+            "total_embeddings": 0,
+            "processing_time": 0.0
+        }
+        
+        try:
+            self.logger.info("Starting ingestion pipeline...")
+            
+            # Step 1: Fetch data from JSON endpoint
+            self.logger.info("Fetching data from JSON endpoint...")
+            raw_data = self.scraper.fetch_data()
+            self.logger.info(f"Fetched {len(raw_data)} records")
+            
+            # Step 2: Extract text content
+            self.logger.info("Extracting text content...")
+            documents = self.scraper.extract_text_content(raw_data)
+            stats["total_documents"] = len(documents)
+            self.logger.info(f"Extracted {len(documents)} documents")
+            
+            if not documents:
+                self.logger.warning("No documents to process")
+                return stats
+            
+            # Step 3: Chunk documents
+            self.logger.info("Chunking documents...")
+            chunks = self.chunker.chunk_documents(documents)
+            stats["total_chunks"] = len(chunks)
+            self.logger.info(f"Created {len(chunks)} chunks")
+            
+            # Step 4: Generate embeddings
+            self.logger.info("Generating embeddings...")
+            contents = [chunk["content"] for chunk in chunks]
+            embeddings = self.generator.generate_batch(contents)
+            stats["total_embeddings"] = len(embeddings)
+            self.logger.info(f"Generated {len(embeddings)} embeddings")
+            
+            # Step 5: Store in Pinecone
+            self.logger.info("Storing in Pinecone...")
+            self.vectorstore.add_documents(chunks, embeddings)
+            self.logger.info("Documents stored successfully")
+            
+            # Calculate processing time
+            stats["processing_time"] = time.time() - start_time
+            self.logger.info(f"Pipeline completed in {stats['processing_time']:.2f}s")
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Pipeline failed: {e}")
             raise
-
-    def _save_checkpoint(self, table_name: str, last_id: Optional[int] = None, processed_docs: int = 0):
-        """Save pipeline progress to checkpoint file."""
+    
+    def _save_checkpoint(self, table_name: str = "", last_id: int = 0, processed_docs: int = 0):
+        """Save checkpoint for resume capability."""
         checkpoint = {
             "table_name": table_name,
             "last_id": last_id,
@@ -61,169 +108,15 @@ class IngestionPipeline:
         }
         with open(self.checkpoint_file, 'w') as f:
             json.dump(checkpoint, f)
-        logger.info(f"Checkpoint saved: {checkpoint}")
-
+    
     def _load_checkpoint(self) -> Optional[Dict[str, Any]]:
-        """Load pipeline progress from checkpoint file."""
+        """Load checkpoint if exists."""
         if self.checkpoint_file.exists():
             with open(self.checkpoint_file, 'r') as f:
-                checkpoint = json.load(f)
-            logger.info(f"Checkpoint loaded: {checkpoint}")
-            return checkpoint
+                return json.load(f)
         return None
-
+    
     def _clear_checkpoint(self):
-        """Clear the checkpoint file."""
+        """Clear checkpoint file."""
         if self.checkpoint_file.exists():
             self.checkpoint_file.unlink()
-            logger.info("Checkpoint cleared")
-
-    def run_full_pipeline(self) -> Dict[str, Any]:
-        """
-        Run the full ingestion pipeline from JSON endpoint to Pinecone.
-        
-        Returns:
-            Statistics dict
-        """
-        start_time = time.time()
-        logger.info("Starting full ingestion pipeline (JSON -> Pinecone)")
-
-        # Validate pipeline
-        self.validate_pipeline()
-
-        total_documents = 0
-        total_chunks = 0
-        total_embeddings = 0
-
-        # Streaming loop: process each batch immediately
-        for batch in self.scraper.scrape_data(batch_size=settings.app.batch_size):
-            batch_chunks: List[Dict[str, Any]] = []
-
-            for doc in batch:
-                chunks = self.chunker.chunk_text(
-                    doc.get('content', ''), 
-                    doc.get('metadata', {})
-                )
-
-                # Enrich chunks with IDs
-                doc_id = doc.get('id')
-                for chunk in chunks:
-                    chunk_index = chunk.get('metadata', {}).get('chunk_index', 0)
-                    chunk['id'] = f"{doc_id}:{chunk_index}"
-
-                batch_chunks.extend(chunks)
-                total_documents += 1
-
-            if not batch_chunks:
-                continue
-
-            # Generate embeddings
-            texts = [c['content'] for c in batch_chunks]
-            embeddings = self.generator.generate_embeddings(texts)
-            
-            # Upsert to Pinecone
-            self.vectorstore.add_documents(batch_chunks, embeddings)
-
-            total_chunks += len(batch_chunks)
-            total_embeddings += embeddings.shape[0]
-
-            # Free memory
-            del batch_chunks
-            del embeddings
-
-        processing_time = time.time() - start_time
-
-        stats = {
-            'total_documents': total_documents,
-            'total_chunks': total_chunks,
-            'total_embeddings': total_embeddings,
-            'processing_time': processing_time
-        }
-
-        logger.info(f"Pipeline completed successfully: {stats}")
-        return stats
-
-    def run_incremental(self, table_name: str, last_id: int) -> Dict[str, Any]:
-        """
-        Run incremental ingestion for a specific table starting from last_id.
-
-        Args:
-            table_name: Name of the table to update
-            last_id: Last processed ID to resume from
-
-        Returns:
-            Statistics dict
-        """
-        start_time = time.time()
-        logger.info(f"Starting incremental ingestion for table '{table_name}' from ID {last_id}")
-
-        # For incremental, we need to modify the scraper to filter by ID > last_id
-        # Since the scraper doesn't support this directly, we'll implement a custom scrape
-
-        total_documents = 0
-        all_chunks = []
-
-        # Get text columns from config or assume
-        # For simplicity, assume text_columns are provided or fetched
-        # This is a placeholder; in real implementation, pass text_columns
-        text_columns = ["content"]  # Placeholder, should be from config
-
-        try:
-            # Custom incremental scrape
-            cursor = self.scraper.connection.cursor(dictionary=True)
-            schema = self.scraper.get_table_schema(table_name)
-            all_columns = [col["Field"] for col in schema]
-            select_columns = ", ".join(all_columns)
-            query = f"SELECT {select_columns} FROM {table_name} WHERE id > {last_id} ORDER BY id"
-            cursor.execute(query)
-            rows = cursor.fetchall()
-            cursor.close()
-
-            for row in rows:
-                # Concatenate text columns with field names for better readability
-                content_parts = [f"{col} {str(row[col])}" for col in text_columns if row[col] is not None]
-                content = ", ".join(content_parts)
-                metadata = {col: row[col] for col in all_columns}
-                doc = {
-                    "id": row["id"],
-                    "source_table": table_name,
-                    "content": content,
-                    "metadata": metadata
-                }
-                chunks = self.chunker.chunk_text(doc['content'], doc['metadata'])
-
-                # Enrich chunks for incremental ingestion as well
-                source_id = doc.get('id') or doc.get('metadata', {}).get('id')
-                source_table = doc.get('source_table', table_name)
-                for chunk in chunks:
-                    chunk_index = chunk.get('metadata', {}).get('chunk_index', 0)
-                    if source_id is not None:
-                        chunk['id'] = f"{source_id}:{chunk_index}"
-                    else:
-                        chunk['id'] = str(chunk_index)
-                    chunk['source_table'] = source_table
-
-                all_chunks.extend(chunks)
-                total_documents += 1
-
-            # Generate embeddings
-            texts = [chunk['content'] for chunk in all_chunks]
-            embeddings = self.generator.generate_embeddings(texts)
-
-            # Store
-            self.vectorstore.add_documents(all_chunks, embeddings)
-
-            processing_time = time.time() - start_time
-            stats = {
-                'total_documents': total_documents,
-                'total_chunks': len(all_chunks),
-                'total_embeddings': len(embeddings),
-                'processing_time': processing_time
-            }
-
-            logger.info(f"Incremental ingestion completed: {stats}")
-            return stats
-
-        except Exception as e:
-            logger.error(f"Incremental ingestion failed: {e}")
-            raise

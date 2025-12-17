@@ -1,1 +1,3 @@
-from .mysql_scraper import MySQLScraper
+from .json_scraper import JSONScraper
+
+__all__ = ["JSONScraper"]

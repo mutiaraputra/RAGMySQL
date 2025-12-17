@@ -45,7 +45,7 @@ class PineconeConfig(BaseModel):
 class GeminiConfig(BaseModel):
     """Configuration for Google Gemini API integration."""
     api_key: str = Field(..., description="Google Gemini API key")
-    model: str = Field("gemini-1.5-flash", description="Gemini model name")
+    model: str = Field("gemini-2.0-flash", description="Gemini model name")
     temperature: float = Field(0.7, ge=0.0, le=2.0, description="Temperature for response generation")
     max_output_tokens: int = Field(2048, ge=1, description="Maximum tokens in response")
     top_p: float = Field(0.95, ge=0.0, le=1.0, description="Top-p sampling parameter")

@@ -1,8 +1,18 @@
 #!/bin/bash
 
-PROJECT_ID="your-gcp-project-id"
+# ============================================
+# KONFIGURASI - Ganti dengan nilai Anda
+# ============================================
+PROJECT_ID="${GCP_PROJECT_ID:-your-gcp-project-id}"  # Set via: export GCP_PROJECT_ID=xxx
 REGION="asia-southeast2"
 SERVICE_NAME="rag-chatbot"
+
+# Validasi PROJECT_ID
+if [ "$PROJECT_ID" = "your-gcp-project-id" ]; then
+    echo "ERROR: Please set GCP_PROJECT_ID environment variable"
+    echo "Usage: export GCP_PROJECT_ID=your-actual-project-id && ./deploy.sh"
+    exit 1
+fi
 
 gcloud services enable cloudbuild.googleapis.com run.googleapis.com secretmanager.googleapis.com
 

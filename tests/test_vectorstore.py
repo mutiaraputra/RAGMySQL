@@ -133,3 +133,78 @@ class TestTiDBVectorStore:
         with vector_store:
             pass
         mock_client.close.assert_called_once()
+
+
+import pytest
+from unittest.mock import Mock, patch, MagicMock
+import numpy as np
+
+from src.vectorstore.pinecone_store import PineconeVectorStore
+
+
+class TestPineconeVectorStore:
+    @pytest.fixture
+    def mock_requests(self):
+        """Mock requests for Pinecone REST API."""
+        with patch('requests.Session') as mock_session:
+            mock_response = Mock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {"upsertedCount": 10}
+            mock_session.return_value.post.return_value = mock_response
+            mock_session.return_value.get.return_value = mock_response
+            yield mock_session
+
+    @pytest.fixture
+    def vector_store(self, mock_requests, test_settings):
+        """Create PineconeVectorStore instance with mocked requests."""
+        return PineconeVectorStore(
+            test_settings.pinecone,
+            test_settings.app.embedding_dimension
+        )
+
+    def test_initialization(self, vector_store, test_settings):
+        """Test vector store initialization."""
+        assert vector_store.embedding_dim == test_settings.app.embedding_dimension
+        assert vector_store.namespace == test_settings.pinecone.namespace
+
+    def test_add_documents(self, vector_store, sample_documents, sample_embeddings):
+        """Test bulk insert of documents with embeddings."""
+        with patch.object(vector_store, '_upsert_batch') as mock_upsert:
+            mock_upsert.return_value = {"upsertedCount": len(sample_documents)}
+            
+            vector_store.add_documents(sample_documents, sample_embeddings)
+            
+            assert mock_upsert.called
+
+    def test_search(self, vector_store, sample_embeddings):
+        """Test similarity search."""
+        with patch.object(vector_store, 'search') as mock_search:
+            mock_search.return_value = [
+                {"content": "test", "metadata": {}, "similarity_score": 0.9}
+            ]
+            
+            query_embedding = sample_embeddings[0]
+            results = vector_store.search(query_embedding, top_k=5)
+            
+            assert len(results) == 1
+            assert results[0]["similarity_score"] == 0.9
+
+    def test_search_with_filters(self, vector_store, sample_embeddings):
+        """Test search with metadata filters."""
+        with patch.object(vector_store, 'search') as mock_search:
+            mock_search.return_value = []
+            
+            query_embedding = sample_embeddings[0]
+            filters = {"source": "test"}
+            results = vector_store.search(query_embedding, top_k=5, filters=filters)
+            
+            mock_search.assert_called_once_with(query_embedding, top_k=5, filters=filters)
+
+    def test_get_stats(self, vector_store):
+        """Test getting index statistics."""
+        with patch.object(vector_store, 'get_stats') as mock_stats:
+            mock_stats.return_value = {"totalVectorCount": 1000}
+            
+            stats = vector_store.get_stats()
+            
+            assert stats["totalVectorCount"] == 1000

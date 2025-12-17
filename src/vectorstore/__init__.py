@@ -1,1 +1,3 @@
-from .tidb_store import TiDBVectorStore
+from .pinecone_store import PineconeVectorStore
+
+__all__ = ["PineconeVectorStore"]

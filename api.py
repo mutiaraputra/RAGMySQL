@@ -155,30 +155,34 @@ async def chat(request: ChatRequest):
         logger.error(f"Chat error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/ingest", response_model=IngestionResponse)
+@app.post("/ingest")
 async def ingest_data(request: IngestionRequest):
-    """Trigger data ingestion from JSON endpoint."""
-    if not pipeline:
+    """Ingest data from JSON endpoint to Pinecone."""
+    global pipeline
+    
+    if pipeline is None:
         raise HTTPException(status_code=503, detail="Pipeline not initialized")
     
     try:
         if request.dry_run:
             # Validate only
-            pipeline.validate_pipeline()
+            is_valid = pipeline.validate_pipeline()
             return {
-                "status": "validation_successful",
-                "statistics": {}
+                "status": "validated" if is_valid else "invalid",
+                "message": "Pipeline validation successful" if is_valid else "Validation failed",
+                "endpoint": str(settings.json_endpoint.url)
             }
-        else:
-            # Run full pipeline
-            stats = pipeline.run_full_pipeline()
-            return {
-                "status": "completed",
-                "statistics": stats
-            }
-            
+        
+        # Run full pipeline (tanpa 'with' statement)
+        stats = pipeline.run_full_pipeline()
+        
+        return {
+            "status": "completed",
+            "statistics": stats
+        }
+        
     except Exception as e:
-        logger.error(f"Ingestion error: {e}")
+        logger.error(f"Ingestion failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/sources")

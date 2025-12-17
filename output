@@ -1,0 +1,46 @@
+gcloud run services logs read rag-chatbot --region=asia-southeast2 --limit=50
+2025-12-17 09:12:59 2025-12-17 09:12:59,150 - src.vectorstore.pinecone_store - INFO - Initialized PineconeVectorStore with Records API (2025-10)
+2025-12-17 09:12:59 2025-12-17 09:12:59,150 - api - INFO - Application initialized successfully!
+2025-12-17 09:12:59 [2025-12-17 09:12:59 +0000] [2] [INFO] Application startup complete.
+2025-12-17 09:12:59 2025-12-17 09:12:59,153 - src.vectorstore.pinecone_store - INFO - Searching Pinecone with query: pelanggan bernama Nindy?...   
+2025-12-17 09:13:00 2025-12-17 09:13:00,354 - src.vectorstore.pinecone_store - INFO - Found 1 results
+2025-12-17 09:13:00 2025-12-17 09:13:00,355 - google_genai.models - INFO - AFC is enabled with max remote calls: 10.
+2025-12-17 09:13:00 2025-12-17 09:13:00,459 - httpx - INFO - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent "HTTP/1.1 404 Not Found"
+2025-12-17 09:13:00 2025-12-17 09:13:00,460 - src.chatbot.rag_bot - ERROR - Error in ask: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}
+2025-12-17 09:21:55 [2025-12-17 09:21:55 +0000] [1] [INFO] Starting gunicorn 23.0.0
+2025-12-17 09:21:55 [2025-12-17 09:21:55 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+2025-12-17 09:21:55 [2025-12-17 09:21:55 +0000] [1] [INFO] Using worker: uvicorn.workers.UvicornWorker
+2025-12-17 09:21:55 [2025-12-17 09:21:55 +0000] [2] [INFO] Booting worker with pid: 2
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [1] [INFO] Handling signal: term
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [2] [INFO] Shutting down
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [2] [INFO] Error while closing socket [Errno 9] Bad file descriptor
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [2] [INFO] Waiting for application shutdown.
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [2] [INFO] Application shutdown complete.
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [2] [INFO] Finished server process [2]
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [1] [ERROR] Worker (pid:2) was sent SIGTERM!
+2025-12-17 09:23:06 [2025-12-17 09:23:06 +0000] [1] [INFO] Shutting down: Master
+2025-12-17 09:25:47 POST 200 https://rag-chatbot-339147966330.asia-southeast2.run.app/chat
+2025-12-17 09:26:03 [2025-12-17 09:26:03 +0000] [2] [INFO] Started server process [2]
+2025-12-17 09:26:03 [2025-12-17 09:26:03 +0000] [2] [INFO] Waiting for application startup.
+2025-12-17 09:26:03 2025-12-17 09:26:03,473 - api - INFO - Initializing application components...
+2025-12-17 09:26:03 2025-12-17 09:26:03,474 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2025-12-17 09:26:03 2025-12-17 09:26:03,474 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-12-17 09:26:12 2025-12-17 09:26:12,585 - src.embeddings.generator - INFO - Loaded SentenceTransformer model: sentence-transformers/all-MiniLM-L6-v2 on device: cpu
+2025-12-17 09:26:12 2025-12-17 09:26:12,585 - src.embeddings.generator - INFO - Embedding dimension: 384
+2025-12-17 09:26:12 2025-12-17 09:26:12,585 - api - INFO - Connecting to Pinecone...
+2025-12-17 09:26:12 2025-12-17 09:26:12,586 - src.vectorstore.pinecone_store - INFO - Initialized PineconeVectorStore with Records API (2025-10)
+2025-12-17 09:26:12 2025-12-17 09:26:12,586 - api - INFO - Initializing Gemini chatbot...
+2025-12-17 09:26:12 2025-12-17 09:26:12,697 - src.chatbot.rag_bot - INFO - Initialized RAGChatBot with Gemini model: gemini-1.5-flash
+2025-12-17 09:26:12 2025-12-17 09:26:12,697 - api - INFO - Initializing ingestion pipeline...
+2025-12-17 09:26:12 2025-12-17 09:26:12,698 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2025-12-17 09:26:12 2025-12-17 09:26:12,698 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-L6-v2
+2025-12-17 09:26:16 2025-12-17 09:26:16,198 - src.embeddings.generator - INFO - Loaded SentenceTransformer model: sentence-transformers/all-MiniLM-L6-v2 on device: cpu
+2025-12-17 09:26:16 2025-12-17 09:26:16,198 - src.embeddings.generator - INFO - Embedding dimension: 384
+2025-12-17 09:26:16 2025-12-17 09:26:16,199 - src.vectorstore.pinecone_store - INFO - Initialized PineconeVectorStore with Records API (2025-10)   
+2025-12-17 09:26:16 2025-12-17 09:26:16,199 - api - INFO - Application initialized successfully!
+2025-12-17 09:26:16 [2025-12-17 09:26:16 +0000] [2] [INFO] Application startup complete.
+2025-12-17 09:26:16 2025-12-17 09:26:16,202 - src.vectorstore.pinecone_store - INFO - Searching Pinecone with query: pelanggan bernama Nindy?...   
+2025-12-17 09:26:17 2025-12-17 09:26:17,402 - src.vectorstore.pinecone_store - INFO - Found 1 results
+2025-12-17 09:26:17 2025-12-17 09:26:17,402 - google_genai.models - INFO - AFC is enabled with max remote calls: 10.
+2025-12-17 09:26:17 2025-12-17 09:26:17,505 - httpx - INFO - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent "HTTP/1.1 404 Not Found"
+2025-12-17 09:26:17 2025-12-17 09:26:17,506 - src.chatbot.rag_bot - ERROR - Error in ask: 404 NOT_FOUND. {'error': {'code': 404, 'message': 'models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.', 'status': 'NOT_FOUND'}}

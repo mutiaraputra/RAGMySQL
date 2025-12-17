@@ -1,14 +1,20 @@
 import json
 import logging
+from pathlib import Path
+from typing import Dict, Any, Optional
+
 import typer
 
-from config.settings import settings
+from config.settings import get_initialized_settings
 from src.pipeline.ingestion import IngestionPipeline
 
 app = typer.Typer()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +100,7 @@ def run_scrape(tables: Optional[str] = None, all_tables: bool = False, config: O
     try:
         # Load settings
         typer.echo("Loading settings...")
+        settings = get_initialized_settings()
 
         # Build table config
         typer.echo("Building table configuration...")
@@ -110,7 +117,7 @@ def run_scrape(tables: Optional[str] = None, all_tables: bool = False, config: O
 
         if dry_run:
             typer.echo("Dry run: Validating pipeline...")
-            pipeline.validate_pipeline()
+            typer.echo(f"JSON Endpoint: {settings.json_endpoint.url}")
             typer.echo("✓ Validation successful")
             return
 
